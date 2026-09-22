@@ -1,506 +1,518 @@
 # Phase 1H — Complete Report
 
-**E-Saraban — ระบบสารบรรณอิเล็กทรอนิกส์**  
-**เทศบาลตำบลป่งไฮ**  
-**วันที่:** 2026
+## Executive Summary
+
+Phase 1H เป็นขั้นตอนการตรวจสอบและวิเคราะห์โครงสร้างข้อมูลจริงจาก Google Sheets ของระบบ E-Saraban
+
+**สถานะปัจจุบัน:** ⏳ Script สร้างเสร็จแล้ว, รอการ Execute จาก Project Owner
 
 ---
 
-## PHASE 1H TRANSFER PACKAGE — COMPLETE FILE LIST
+## 1. Current Status
 
-### Files Created/Modified
+### ✅ Completed
+- ✅ Discovery script สร้างเสร็จแล้ว (592 lines)
+- ✅ npm script เพิ่มใน package.json แล้ว
+- ✅ เอกสารคู่มือสร้างเสร็จแล้ว (3 ไฟล์)
+- ✅ Build ผ่านแล้ว
 
-```
-✅ server/src/scripts/phase1h-discovery.ts (191 lines)
-✅ server/package.json (updated)
-✅ PHASE-1H-GOOGLE-SHEETS-FULL-DISCOVERY.md
-✅ PHASE-1H-SUMMARY.md
-✅ PHASE-1H-COMPLETE-REPORT.md (this file)
-```
+### ⏳ Pending
+- ⏳ รอการ execute script บนเครื่อง local
+- ⏳ รอผลลัพธ์จริงจาก Google Sheets
+- ⏳ รอการวิเคราะห์ข้อมูลจริง
 
----
-
-## FILE 1: server/src/scripts/phase1h-discovery.ts
-
-**Status:** ✅ CREATED  
-**Lines:** 191  
-**Purpose:** Google Sheets Discovery Script (READ-ONLY)
-
-**Complete Source Code:**
-
-```typescript
-/**
- * Phase 1H — Google Sheets Full Discovery & Validation
- * E-Saraban — ระบบสารบรรณอิเล็กทรอนิกส์
- * เทศบาลตำบลป่งไฮ
- * 
- * READ ONLY — ห้ามเขียน/แก้ไขข้อมูลใน Google Sheets
- * 
- * วัตถุประสงค์:
- * - อ่าน Google Sheets ทั้ง 10 Sheets
- * - ตรวจสอบโครงสร้างข้อมูล
- * - ตรวจสอบ relationships
- * - สร้างรายงานการตรวจสอบ
- */
-
-import { google } from 'googleapis';
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import fs from 'fs';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// โหลด .env จาก project root
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
-
-// ============================================
-// Types
-// ============================================
-
-interface SheetData {
-  sheetName: string;
-  headers: string[];
-  rows: string[][];
-  rowCount: number;
-  columnCount: number;
-  readStatus: 'SUCCESS' | 'FAILED' | 'EMPTY';
-  error?: string;
-}
-
-interface ValidationResult {
-  spreadsheetId: string;
-  spreadsheetTitle: string;
-  sheets: SheetData[];
-  timestamp: string;
-  status: 'SUCCESS' | 'PARTIAL' | 'FAILED';
-  errors: string[];
-  warnings: string[];
-  summary: {
-    totalSheets: number;
-    sheetsWithData: number;
-    emptySheets: number;
-    failedSheets: number;
-  };
-}
-
-// ============================================
-// Main Discovery Function
-// ============================================
-
-async function discoverAllSheets(): Promise<ValidationResult> {
-  const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
-  const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const privateKey = process.env.GOOGLE_PRIVATE_KEY;
-
-  // ตรวจสอบ credentials
-  if (!spreadsheetId || !serviceAccountEmail || !privateKey) {
-    return {
-      spreadsheetId: spreadsheetId || '',
-      spreadsheetTitle: '',
-      sheets: [],
-      timestamp: new Date().toISOString(),
-      status: 'FAILED',
-      errors: ['Missing Google Sheets credentials in .env'],
-      warnings: [],
-      summary: {
-        totalSheets: 0,
-        sheetsWithData: 0,
-        emptySheets: 0,
-        failedSheets: 0,
-      },
-    };
-  }
-
-  console.log('═══════════════════════════════════════════════════════════');
-  console.log('PHASE 1H — GOOGLE SHEETS FULL DISCOVERY');
-  console.log('E-Saraban — ระบบสารบรรณอิเล็กทรอนิกส์');
-  console.log('═══════════════════════════════════════════════════════════\n');
-
-  console.log('📡 Connecting to Google Sheets...');
-  console.log(`   Spreadsheet ID: ${spreadsheetId.substring(0, 10)}...`);
-  console.log(`   Service Account: ${serviceAccountEmail}\n`);
-
-  try {
-    // สร้าง authenticated client
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: serviceAccountEmail,
-        private_key: privateKey.replace(/\\n/g, '\n'),
-      },
-      scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-    });
-
-    const sheets = google.sheets({ version: 'v4', auth });
-
-    // ดึง metadata ของ spreadsheet
-    console.log('📋 Reading spreadsheet metadata...');
-    const metadataResponse = await sheets.spreadsheets.get({
-      spreadsheetId,
-      includeGridData: false,
-    });
-
-    const spreadsheet = metadataResponse.data;
-    const sheetsList = spreadsheet.sheets || [];
-
-    console.log(`✅ Connected successfully!`);
-    console.log(`   Title: ${spreadsheet.properties?.title}`);
-    console.log(`   Total Sheets: ${sheetsList.length}\n`);
-
-    // อ่านข้อมูลทุก sheet
-    const allSheetsData: SheetData[] = [];
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    for (const sheet of sheetsList) {
-      const sheetName = sheet.properties?.title;
-      if (!sheetName) continue;
-
-      console.log(`📄 Reading sheet: ${sheetName}`);
-
-      try {
-        // อ่านข้อมูลทั้งหมดจาก sheet
-        const response = await sheets.spreadsheets.values.get({
-          spreadsheetId,
-          range: sheetName,
-          valueRenderOption: 'FORMATTED_VALUE',
-        });
-
-        const values = response.data.values || [];
-        const headers = values[0] || [];
-        const rows = values.slice(1);
-
-        const sheetData: SheetData = {
-          sheetName,
-          headers,
-          rows,
-          rowCount: rows.length,
-          columnCount: headers.length,
-          readStatus: rows.length === 0 ? 'EMPTY' : 'SUCCESS',
-        };
-
-        allSheetsData.push(sheetData);
-
-        console.log(`   ✅ Headers: ${headers.length}`);
-        console.log(`   ✅ Data Rows: ${rows.length}`);
-        console.log(`   ✅ Columns: ${headers.join(', ')}`);
-        
-        if (rows.length === 0) {
-          console.log(`   ⚠️  Sheet is empty (headers only)\n`);
-        } else {
-          console.log('');
-        }
-      } catch (error) {
-        const errorMsg = `Failed to read sheet "${sheetName}": ${error instanceof Error ? error.message : 'Unknown error'}`;
-        console.error(`   ❌ ${errorMsg}\n`);
-        errors.push(errorMsg);
-        
-        allSheetsData.push({
-          sheetName,
-          headers: [],
-          rows: [],
-          rowCount: 0,
-          columnCount: 0,
-          readStatus: 'FAILED',
-          error: errorMsg,
-        });
-      }
-    }
-
-    // สรุปผล
-    const sheetsWithData = allSheetsData.filter(s => s.readStatus === 'SUCCESS').length;
-    const emptySheets = allSheetsData.filter(s => s.readStatus === 'EMPTY').length;
-    const failedSheets = allSheetsData.filter(s => s.readStatus === 'FAILED').length;
-
-    const result: ValidationResult = {
-      spreadsheetId,
-      spreadsheetTitle: spreadsheet.properties?.title || '',
-      sheets: allSheetsData,
-      timestamp: new Date().toISOString(),
-      status: errors.length === 0 ? 'SUCCESS' : 'PARTIAL',
-      errors,
-      warnings,
-      summary: {
-        totalSheets: allSheetsData.length,
-        sheetsWithData,
-        emptySheets,
-        failedSheets,
-      },
-    };
-
-    // บันทึกผลลัพธ์
-    const reportPath = path.resolve(__dirname, '../../../PHASE-1H-DISCOVERY-RESULT.json');
-    fs.writeFileSync(reportPath, JSON.stringify(result, null, 2));
-    
-    console.log('═══════════════════════════════════════════════════════════');
-    console.log('DISCOVERY COMPLETE');
-    console.log('═══════════════════════════════════════════════════════════');
-    console.log(`\nStatus: ${result.status}`);
-    console.log(`Sheets Read: ${allSheetsData.length}/10`);
-    console.log(`  - With Data: ${sheetsWithData}`);
-    console.log(`  - Empty: ${emptySheets}`);
-    console.log(`  - Failed: ${failedSheets}`);
-    
-    if (errors.length > 0) {
-      console.log(`\nErrors: ${errors.length}`);
-      errors.forEach((err, i) => {
-        console.log(`  ${i + 1}. ${err}`);
-      });
-    }
-    
-    console.log(`\n✅ Report saved to: ${reportPath}\n`);
-
-    return result;
-  } catch (error) {
-    console.error('\n❌ Connection failed:', error instanceof Error ? error.message : 'Unknown error');
-    
-    if (error && typeof error === 'object' && 'code' in error) {
-      const apiError = error as any;
-      console.error(`   Error Code: ${apiError.code}`);
-      console.error(`   Error Status: ${apiError.status}`);
-      
-      if (apiError.code === 403) {
-        console.error('\n💡 Hint: Service Account อาจไม่มีสิทธิ์เข้าถึง Spreadsheet');
-        console.error('   ตรวจสอบว่า Share Spreadsheet กับ Service Account Email แล้ว');
-      } else if (apiError.code === 404) {
-        console.error('\n💡 Hint: Spreadsheet ID อาจไม่ถูกต้อง');
-      }
-    }
-
-    return {
-      spreadsheetId,
-      spreadsheetTitle: '',
-      sheets: [],
-      timestamp: new Date().toISOString(),
-      status: 'FAILED',
-      errors: [error instanceof Error ? error.message : 'Unknown error'],
-      warnings: [],
-      summary: {
-        totalSheets: 0,
-        sheetsWithData: 0,
-        emptySheets: 0,
-        failedSheets: 0,
-      },
-    };
-  }
-}
-
-// ============================================
-// Execute
-// ============================================
-
-discoverAllSheets().then((result) => {
-  process.exit(result.status === 'FAILED' ? 1 : 0);
-}).catch((error) => {
-  console.error('Fatal error:', error);
-  process.exit(1);
-});
-```
+### ❌ Not Done
+- ❌ ไม่ได้ execute script ใน environment นี้
+- ❌ ไม่ได้สร้าง PHASE-1H-DISCOVERY-RESULT.json
+- ❌ ไม่ได้วิเคราะห์ข้อมูลจริง
+- ❌ ไม่ได้ implement authentication
+- ❌ ไม่ได้สร้าง password
+- ❌ ไม่ได้แก้ไข Google Sheets
 
 ---
 
-## FILE 2: server/package.json
+## 2. Script Details
 
-**Status:** ✅ UPDATED  
-**Lines:** 31
+### File Information
+- **File:** `server/src/scripts/phase1h-discovery.ts`
+- **Lines:** 592
+- **Type:** READ-ONLY Discovery & Validation
+- **Language:** TypeScript
+- **Runtime:** Node.js with tsx
 
-**Complete File:**
+### Features
 
+#### 2.1 Sheet Discovery
+- ตรวจสอบว่ามี Sheets ครบ 10 Sheets ที่คาดหวังหรือไม่
+- รายงาน Sheets ที่ขาดหายหรือเกินมา
+- อ่านข้อมูลจากทุก Sheet ที่มีอยู่
+
+#### 2.2 Column Validation
+ตรวจสอบ columns ที่คาดหวังสำหรับแต่ละ Sheet:
+
+| Sheet | Expected Columns | Validation |
+|-------|-----------------|------------|
+| Users | 11 | ✅ User_ID, ชื่อ-สกุล, Position_ID, ตำแหน่ง, Department_ID, Unit_ID, Role, Email, สถานะ, Can_View_All, Can_Sign |
+| Positions | 5 | ✅ Position_ID, ตำแหน่ง, Department_ID, Role, ลำดับอนุมัติ |
+| Departments | 3 | ✅ Department_ID, ชื่อหน่วยงาน, สถานะ |
+| Units | 5 | ✅ Unit_ID, ชื่อฝ่าย/งาน, Department_ID, ประเภท, สถานะ |
+| Documents | 18 | ✅ Document_ID, ประเภททะเบียน, ประเภทหนังสือ, Incoming_ID, Outgoing_ID, เลขที่หนังสือ, เรื่อง, ลงวันที่, จาก, ถึง, หน่วยงานรับผิดชอบ, งานรับผิดชอบ, ชั้นความลับ, ความเร่งด่วน, สถานะ, File_ID, วันที่สร้าง, ผู้สร้าง |
+| Incoming | 16 | ✅ Incoming_ID, Document_ID, เลขทะเบียนรับ, เลขที่หนังสือ, ลงวันที่, จาก, ถึง, เรื่อง, หน่วยงานรับผิดชอบ, งานรับผิดชอบ, ชั้นความลับ, ความเร่งด่วน, File_ID, วันที่รับ, ผู้รับหนังสือ, สถานะ |
+| Outgoing | 16 | ✅ Outgoing_ID, Document_ID, เลขที่หนังสือ, ประเภทหนังสือ, ลงวันที่, จาก, ถึง, เรื่อง, หน่วยงานเจ้าของเรื่อง, งานเจ้าของเรื่อง, ชั้นความลับ, ความเร่งด่วน, File_ID, ผู้จัดทำ, สถานะ, วันที่ส่ง |
+| Workflow | 11 | ✅ Workflow_ID, Document_ID, ลำดับ, จากผู้ดำเนินการ, ถึงผู้ดำเนินการ, การดำเนินการ, คำสั่ง/ความเห็น, วันที่ส่ง, วันที่รับ, สถานะ, หมายเหตุ |
+| Signatures | 7 | ✅ Signature_ID, User_ID, ชื่อ-สกุล, ตำแหน่ง, Signature_File_ID, วันที่บันทึก, สถานะ |
+| AuditLog | 6 | ✅ Audit_ID, Document_ID, การกระทำ, รายละเอียด, วันที่เวลา, IP_Address |
+
+#### 2.3 Data Validation
+
+**Users Validation:**
+- ✅ ตรวจสอบ duplicate User_ID
+- ✅ ตรวจสอบ missing User_ID
+- ✅ ตรวจสอบ duplicate Email
+- ✅ ตรวจสอบ missing Email
+- ✅ ตรวจสอบ Position_ID references
+- ✅ ตรวจสอบ Department_ID references
+- ✅ ตรวจสอบ Unit_ID references
+- ✅ วิเคราะห์ Role values (distribution)
+- ✅ วิเคราะห์ status values (distribution)
+- ✅ วิเคราะห์ Can_View_All values (✔/✗)
+- ✅ วิเคราะห์ Can_Sign values (✔/✗)
+
+**Positions Validation:**
+- ✅ ตรวจสอบ duplicate Position_ID
+- ✅ ตรวจสอบ missing Position_ID
+- ✅ ตรวจสอบ Department_ID references
+- ✅ วิเคราะห์ Role values
+- ✅ วิเคราะห์ approval sequence (ลำดับอนุมัติ)
+
+**Departments Validation:**
+- ✅ ตรวจสอบ duplicate Department_ID
+- ✅ ตรวจสอบ missing Department_ID
+- ✅ วิเคราะห์ status values
+
+**Units Validation:**
+- ✅ ตรวจสอบ duplicate Unit_ID
+- ✅ ตรวจสอบ blank Unit_ID
+- ✅ ตรวจสอบ Department_ID references
+- ✅ วิเคราะห์ status values
+- ✅ วิเคราะห์ type values
+
+#### 2.4 Relationship Validation
+
+ตรวจสอบ relationships ระหว่าง Sheets:
+- ✅ Users.Position_ID → Positions.Position_ID
+- ✅ Users.Department_ID → Departments.Department_ID
+- ✅ Users.Unit_ID → Units.Unit_ID
+- ✅ Signatures.User_ID → Users.User_ID
+- ✅ Documents.Incoming_ID → Incoming.Incoming_ID
+- ✅ Documents.Outgoing_ID → Outgoing.Outgoing_ID
+- ✅ Incoming.Document_ID → Documents.Document_ID
+- ✅ Outgoing.Document_ID → Documents.Document_ID
+- ✅ Workflow.Document_ID → Documents.Document_ID
+- ✅ AuditLog.Document_ID → Documents.Document_ID
+
+#### 2.5 Organization Mapping
+
+สร้าง mapping ของโครงสร้างองค์กร:
+- ✅ Departments → Units → Users
+- ✅ แสดง relationships ระหว่าง entities
+- ✅ ระบุ unresolved records
+
+---
+
+## 3. Expected Output
+
+### Output File
+**File:** `PHASE-1H-DISCOVERY-RESULT.json`
+
+### Output Structure
 ```json
 {
-  "name": "e-saraban-server",
-  "version": "1.0.0",
-  "description": "Backend API for E-Saraban — ระบบสารบรรณอิเล็กทรอนิกส์ เทศบาลตำบลป่งไฮ",
-  "type": "module",
-  "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "test:connection": "tsx src/test-connection.ts",
-    "check:env": "tsx src/check-env.ts",
-    "discover:schema": "tsx src/discover-schema.ts",
-    "discover:all": "tsx src/discover-all.ts",
-    "phase1c": "tsx src/scripts/discover-all-sheets.ts",
-    "phase1h": "tsx src/scripts/phase1h-discovery.ts"
+  "timestamp": "2026-...",
+  "spreadsheet": {
+    "id": "1JDfRSCQJy7bsNgONUztTaNc-ucNuKkJadOSUah7Gpes",
+    "title": "E-Saraban Data"
   },
-  "dependencies": {
-    "googleapis": "^144.0.0",
-    "express": "^4.21.0",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5"
+  "expectedSheetCount": 10,
+  "actualSheetCount": 10,
+  "missingExpectedSheets": [],
+  "unexpectedSheets": [],
+  "sheets": {
+    "Users": {
+      "sheetName": "Users",
+      "headers": ["User_ID", "ชื่อ-สกุล", ...],
+      "rows": [...],
+      "rowCount": 8,
+      "columnCount": 11,
+      "readStatus": "SUCCESS",
+      "missingColumns": [],
+      "extraColumns": []
+    },
+    ...
   },
-  "devDependencies": {
-    "@types/express": "^4.17.21",
-    "@types/cors": "^2.8.17",
-    "@types/node": "^22.0.0",
-    "typescript": "^5.7.0",
-    "tsx": "^4.19.0"
-  }
+  "users": {
+    "data": { ... },
+    "validation": {
+      "duplicates": 0,
+      "missing": 0,
+      "invalid": 0,
+      "duplicateUserIds": [],
+      "missingUserIds": 0,
+      "duplicateEmails": [],
+      "missingEmails": 0,
+      "roleValues": {
+        "MAYOR": 1,
+        "CLERK": 1,
+        "OFFICE_HEAD": 1,
+        "DIVISION_HEAD": 2,
+        "STAFF_HEAD": 1,
+        "STAFF": 1,
+        "ADMIN": 1
+      },
+      "statusValues": {
+        "ใช้งาน": 8
+      },
+      "canViewAllValues": {
+        "✔": 2,
+        "✗": 6
+      },
+      "canSignValues": {
+        "✔": 6,
+        "✗": 2
+      }
+    }
+  },
+  "positions": { ... },
+  "departments": { ... },
+  "units": { ... },
+  "documents": { ... },
+  "incoming": { ... },
+  "outgoing": { ... },
+  "workflow": { ... },
+  "signatures": { ... },
+  "auditLog": { ... },
+  "relationships": [
+    {
+      "from": "Users",
+      "fromField": "Position_ID",
+      "to": "Positions",
+      "toField": "Position_ID",
+      "status": "VERIFIED",
+      "matchedCount": 8,
+      "orphanCount": 0,
+      "details": []
+    },
+    ...
+  ],
+  "organizationMapping": {
+    "departments": {
+      "D001": {
+        "name": "ระดับบริหาร",
+        "units": [],
+        "users": ["U001", "U002"]
+      },
+      ...
+    },
+    "units": {
+      "UNT0015": {
+        "name": "งานรักษาความสงบเรียบร้อยและความมั่นคง",
+        "departmentId": "D002",
+        "users": ["U006", "U007"]
+      },
+      ...
+    },
+    "unresolved": []
+  },
+  "gaps": [],
+  "warnings": [],
+  "errors": [],
+  "overallStatus": "SUCCESS"
 }
 ```
 
-**Change:** Line 15 — Added `"phase1h": "tsx src/scripts/phase1h-discovery.ts"`
-
 ---
 
-## FILE 3: PHASE-1H-GOOGLE-SHEETS-FULL-DISCOVERY.md
+## 4. Execution Instructions
 
-**Status:** ✅ CREATED  
-**Purpose:** Documentation for discovery script
+### Prerequisites
 
-**Location:** See workspace file
+1. **Environment Variables** - ต้องมี `.env` file ที่มี:
+   ```env
+   GOOGLE_SPREADSHEET_ID=1JDfRSCQJy7bsNgONUztTaNc-ucNuKkJadOSUah7Gpes
+   GOOGLE_SERVICE_ACCOUNT_EMAIL=saraban@glassy-clarity-509403-v7.iam.gserviceaccount.com
+   GOOGLE_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----
+   ```
 
----
+2. **Dependencies** - ต้องติดตั้ง dependencies:
+   ```bash
+   cd server
+   npm install
+   ```
 
-## FILE 4: PHASE-1H-SUMMARY.md
+3. **Service Account Access** - Service Account ต้องมีสิทธิ์เข้าถึง Google Sheets
 
-**Status:** ✅ CREATED  
-**Purpose:** Summary report
-
-**Location:** See workspace file
-
----
-
-## FILE 5: PHASE-1H-COMPLETE-REPORT.md
-
-**Status:** ✅ CREATED  
-**Purpose:** This file — complete report with all file contents
-
----
-
-## TRANSFER INSTRUCTIONS
-
-### For Project Owner
-
-**Step 1: Create Directory Structure**
+### Execution Steps
 
 ```bash
-cd C:\Users\admin\Desktop\saraban1
-mkdir -p server/src/scripts
-```
-
-**Step 2: Create phase1h-discovery.ts**
-
-Copy the complete source code from FILE 1 above and save to:
-
-```
-server/src/scripts/phase1h-discovery.ts
-```
-
-**Step 3: Update package.json**
-
-Add line 15 to `server/package.json`:
-
-```json
-"phase1h": "tsx src/scripts/phase1h-discovery.ts"
-```
-
-**Step 4: Verify Files**
-
-```bash
-# Check script exists
-ls -la server/src/scripts/phase1h-discovery.ts
-
-# Check npm script
-cat server/package.json | grep phase1h
-```
-
-**Step 5: Execute Discovery**
-
-```bash
+# 1. เข้าไปในโฟลเดอร์ server
 cd server
+
+# 2. ติดตั้ง dependencies (ถ้ายังไม่ได้ทำ)
 npm install
+
+# 3. ตรวจสอบ environment
+npm run check:env
+
+# 4. ทดสอบการเชื่อมต่อ
+npm run test:connection
+
+# 5. รัน Phase 1H Discovery
 npm run phase1h
 ```
 
-**Step 6: Verify Output**
+### Expected Console Output
 
-```bash
-# Check output file
-ls -la PHASE-1H-DISCOVERY-RESULT.json
+```
+═══════════════════════════════════════════════════════════
+PHASE 1H — GOOGLE SHEETS FULL DISCOVERY & VALIDATION
+E-Saraban — ระบบสารบรรณอิเล็กทรอนิกส์
+═══════════════════════════════════════════════════════════
 
-# View results
-cat PHASE-1H-DISCOVERY-RESULT.json
+📡 Connecting to Google Sheets...
+   Spreadsheet ID: 1JDfRSCQ...
+   Service Account: saraban@glassy-clarity-509403-v7.iam.gserviceaccount.com
+
+📋 Reading spreadsheet metadata...
+✅ Connected successfully!
+   Title: E-Saraban Data
+   Total Sheets: 10
+
+📄 Reading sheet: Users
+   ✅ Headers: 11
+   ✅ Data Rows: 8
+
+📄 Reading sheet: Positions
+   ✅ Headers: 5
+   ✅ Data Rows: 8
+
+📄 Reading sheet: Departments
+   ✅ Headers: 3
+   ✅ Data Rows: 6
+
+📄 Reading sheet: Units
+   ✅ Headers: 5
+   ✅ Data Rows: 33
+
+📄 Reading sheet: Documents
+   ✅ Headers: 18
+   ⚠️  Sheet is empty (headers only)
+
+📄 Reading sheet: Incoming
+   ✅ Headers: 16
+   ⚠️  Sheet is empty (headers only)
+
+📄 Reading sheet: Outgoing
+   ✅ Headers: 16
+   ⚠️  Sheet is empty (headers only)
+
+📄 Reading sheet: Workflow
+   ✅ Headers: 11
+   ⚠️  Sheet is empty (headers only)
+
+📄 Reading sheet: Signatures
+   ✅ Headers: 7
+   ✅ Data Rows: 3
+
+📄 Reading sheet: AuditLog
+   ✅ Headers: 6
+   ⚠️  Sheet is empty (headers only)
+
+🔍 Validating sheets...
+
+🔗 Validating relationships...
+
+🏢 Creating organization mapping...
+
+═══════════════════════════════════════════════════════════
+DISCOVERY COMPLETE
+═══════════════════════════════════════════════════════════
+
+Overall Status: SUCCESS
+Expected Sheets: 10
+Actual Sheets: 10
+Missing Expected: 0
+Unexpected: 0
+Errors: 0
+Warnings: 0
+Gaps: 0
+
+✅ Report saved to: PHASE-1H-DISCOVERY-RESULT.json
 ```
 
 ---
 
-## IMPORTANT DISCLAIMERS
+## 5. READ-ONLY Guarantee
 
-### What Was NOT Done
+Script นี้เป็น **READ-ONLY** เท่านั้น:
 
-❌ **Did NOT execute the script**
-- Script exists in workspace
-- Has NOT been run against Google Sheets
-- No real data has been read
+### ✅ Allowed Operations
+- ✅ `spreadsheets.get` - อ่าน metadata ของ spreadsheet
+- ✅ `values.get` - อ่านข้อมูลจาก sheets
 
-❌ **Did NOT commit to git**
-- Files are in workspace only
-- Not in git history
-- Not pushed to remote
-
-❌ **Did NOT update Project Owner's repository**
-- Files must be transferred manually
-- Must be committed after transfer
-
-❌ **Did NOT verify Google Sheets data**
-- No real data from Sheets
-- No validation results
-- No organization mapping
-
-### What Was Done
-
-✅ **Created discovery script**
-- 191 lines of TypeScript
-- READ-ONLY operations
-- Error handling
-- Output generation
-
-✅ **Updated package.json**
-- Added phase1h npm script
-- Preserved existing scripts
-
-✅ **Created documentation**
-- Discovery guide
-- Summary report
-- Complete report (this file)
+### ❌ Not Allowed Operations
+- ❌ `values.update` - ไม่แก้ไขข้อมูล
+- ❌ `values.append` - ไม่เพิ่มข้อมูล
+- ❌ `batchUpdate` - ไม่แก้ไขข้อมูลแบบ batch
+- ❌ `delete` - ไม่ลบข้อมูล
+- ❌ `clear` - ไม่ล้างข้อมูล
+- ❌ `insert` - ไม่แทรกข้อมูล
+- ❌ Formatting changes - ไม่เปลี่ยนรูปแบบ
+- ❌ Schema changes - ไม่เปลี่ยนโครงสร้าง
 
 ---
 
-## FINAL STATUS
+## 6. Important Notes
 
-```
-========================================
-PHASE 1H TRANSFER PACKAGE STATUS
-========================================
+### 6.1 Boolean Values
+- Can_View_All และ Can_Sign ใช้สัญลักษณ์ `✔` และ `✗`
+- Script จะเก็บค่าจริงจาก Sheet (ไม่แปลงเป็น TRUE/FALSE)
+- สามารถวิเคราะห์ distribution ของค่าได้
 
-Implementation:
-phase1h-discovery.ts = CREATED ✅
-npm script = CREATED ✅
-Documentation = CREATED ✅
+### 6.2 Empty Sheets
+- ถ้า Sheet มี headers แต่ไม่มี data rows จะถูกระบุเป็น `EMPTY`
+- ไม่ถือเป็น error
+- จะถูกรวมในผลลัพธ์ด้วย
 
-Execution:
-Google Sheets Discovery = NOT EXECUTED ⏳
-Sheets Read = PENDING
+### 6.3 Missing Columns
+- ถ้า Sheet มี columns ไม่ครบตาม expected จะถูกรายงานใน `missingColumns`
+- ไม่แก้ไข Sheet
+- จะถูกรายงานใน `warnings`
 
-Repository:
-Project Owner repository = NOT UPDATED ❌
-Git commit = NOT PERFORMED ❌
-Git push = NOT PERFORMED ❌
+### 6.4 Relationships
+- ถ้าไม่มีข้อมูลเพียงพอ จะถูกระบุเป็น `UNVERIFIED_NO_DATA`
+- ไม่ fabricate ข้อมูล
+- จะถูกรายงานใน `gaps`
 
-Phase 2:
-BLOCKED ❌
+### 6.5 Workflow Actor
+- `จากผู้ดำเนินการ` และ `ถึงผู้ดำเนินการ` ใน Workflow sheet
+- ไม่ทราบแน่ชัดว่าอ้างอิงถึง User_ID, Position_ID, Department_ID, หรือ Unit_ID
+- จะถูกระบุเป็น `UNVERIFIED` จนกว่าจะมีหลักฐานเพิ่มเติม
 
-Next step:
-Project Owner must transfer/apply the prepared files 
-to the local repository, then execute Phase 1H from 
-the local machine.
-========================================
-```
+### 6.6 Approval Sequence
+- `ลำดับอนุมัติ` ใน Positions sheet
+- ไม่ทราบความหมายที่แท้จริง
+- จะถูกรายงานเป็น `approvalSequenceSemantics: "UNVERIFIED"`
 
 ---
 
-*รายงานสร้างเมื่อ: Phase 1H — E-Saraban Project*  
-*สถานะ: ⚠️ IMPLEMENTATION PREPARED — NOT EXECUTED*  
-*วันที่: 2026*
+## 7. What This Phase Does NOT Do
+
+- ❌ ไม่ได้ execute script ใน environment นี้
+- ❌ ไม่ได้สร้างผลลัพธ์จริง
+- ❌ ไม่ได้วิเคราะห์ข้อมูลจริง
+- ❌ ไม่ได้ implement authentication
+- ❌ ไม่ได้สร้าง password
+- ❌ ไม่ได้สร้าง password hash
+- ❌ ไม่ได้แก้ไข Google Sheets
+- ❌ ไม่ได้สร้าง database
+- ❌ ไม่ได้สร้าง mock data
+- ❌ ไม่ได้ fabricate ข้อมูล
+
+---
+
+## 8. What Needs to Be Done
+
+### 8.1 Immediate Actions
+1. **Execute Script** - รัน `npm run phase1h` บนเครื่อง local
+2. **Review Results** - ตรวจสอบ `PHASE-1H-DISCOVERY-RESULT.json`
+3. **Analyze Gaps** - วิเคราะห์ข้อมูลที่ขาดหาย
+4. **Verify Relationships** - ยืนยัน relationships
+
+### 8.2 Next Phase Preparation
+1. **Prepare Phase 2** - ใช้ข้อมูลจากการ discovery เพื่อออกแบบ authentication
+2. **Design Authentication** - ออกแบบ authentication system
+3. **Design Authorization** - ออกแบบ authorization system
+4. **Design Password Storage** - ออกแบบวิธีเก็บ password
+
+---
+
+## 9. Status Summary
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Discovery Script | ✅ Created | 592 lines, READ-ONLY |
+| npm Script | ✅ Added | `npm run phase1h` |
+| Documentation | ✅ Created | 3 files |
+| Build | ✅ Passed | No errors |
+| Execution | ⏳ Pending | Requires local execution |
+| Results | ⏳ Pending | Requires script execution |
+| Analysis | ⏳ Pending | Requires real data |
+| Phase 2 | ❌ Blocked | Requires Phase 1H completion |
+
+---
+
+## 10. Troubleshooting
+
+### Error: Missing Google Sheets credentials
+```
+Missing Google Sheets credentials in .env
+```
+**Solution:** ตรวจสอบ `.env` file ว่ามี `GOOGLE_SPREADSHEET_ID`, `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_PRIVATE_KEY` ครบถ้วน
+
+### Error: Permission denied
+```
+The caller does not have permission
+```
+**Solution:** ตรวจสอบว่า Service Account มีสิทธิ์เข้าถึง Google Sheets (ต้อง share spreadsheet กับ service account email)
+
+### Error: Spreadsheet not found
+```
+Requested entity was not found
+```
+**Solution:** ตรวจสอบว่า `GOOGLE_SPREADSHEET_ID` ถูกต้อง
+
+### Error: Script not found
+```
+Missing script: "phase1h"
+```
+**Solution:** ตรวจสอบว่า `server/package.json` มี `"phase1h": "tsx src/scripts/phase1h-discovery.ts"` ใน scripts section
+
+---
+
+## 11. Files Created
+
+### 11.1 Script Files
+- ✅ `server/src/scripts/phase1h-discovery.ts` (592 lines)
+
+### 11.2 Configuration Files
+- ✅ `server/package.json` (updated with phase1h script)
+
+### 11.3 Documentation Files
+- ✅ `PHASE-1H-GOOGLE-SHEETS-FULL-DISCOVERY.md` (คู่มือการใช้งาน)
+- ✅ `PHASE-1H-SUMMARY.md` (สรุปผลการตรวจสอบ)
+- ✅ `PHASE-1H-COMPLETE-REPORT.md` (รายงานฉบับสมบูรณ์ - ไฟล์นี้)
+
+---
+
+## 12. Conclusion
+
+Phase 1H script พร้อมสำหรับการ execute แล้ว แต่ต้องรันบนเครื่อง local ของ Project Owner เท่านั้น เนื่องจาก environment นี้ไม่สามารถเข้าถึง Google Sheets ได้โดยตรง
+
+หลังจาก execute สำเร็จ จะได้ข้อมูลจริงจาก Google Sheets ซึ่งจะใช้เป็นพื้นฐานสำหรับ Phase 2 (Authentication & Authorization Design)
+
+---
+
+## 13. Next Steps
+
+1. **Project Owner execute script** บนเครื่อง local
+2. **Review `PHASE-1H-DISCOVERY-RESULT.json`**
+3. **Analyze gaps and warnings**
+4. **Verify relationships**
+5. **Prepare for Phase 2** (Authentication & Authorization Design)
+
+---
+
+**สถานะ:** ⏳ Script สร้างเสร็จแล้ว, รอการ Execute  
+**วันที่:** 2026  
+**Phase:** 1H — Google Sheets Full Discovery & Validation  
+**Next Phase:** Phase 2 — Authentication & Authorization Design (blocked until Phase 1H complete)
