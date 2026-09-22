@@ -27,14 +27,21 @@
 
 ## Authentication Provider
 
-**OPEN — PROJECT OWNER DECISION REQUIRED**
+**✅ DECIDED — APPLICATION-MANAGED AUTHENTICATION**
 
-**Options:**
-1. External Identity Provider (Google, Microsoft, Auth0, Firebase)
-2. Platform Authentication (Built-in ของ hosting platform)
-3. Application-Managed Authentication (จัดการเองทั้งหมด)
+**Decision Maker:** Project Owner
 
-**See:** `PHASE-1F-ARCHITECTURE-DECISION-RECORD.md` — ADR-001
+**Implementation Status:** NOT IMPLEMENTED
+
+**Authentication Method:**
+- Official Email + Password
+- Backend manages authentication
+- Password stored as secure hash (not plaintext)
+
+**Identity Mapping:**
+- Authenticated Email → Users.Email → Users.User_ID
+
+**See:** `PHASE-1F-AUTHENTICATION-PROVIDER-DECISION.md`
 
 ---
 
@@ -226,15 +233,15 @@ Department_ID = blank
 **Phase 2 จะเริ่มได้เมื่อ:**
 
 ```
-Authentication Provider        = DECIDED
-Password Management            = DECIDED
-Identity Mapping               = DECIDED
-Role Permission                = DECIDED
-Can_View_All Scope             = DECIDED
-Can_Sign Scope                 = DECIDED
+Authentication Provider        = DECIDED ✅
+Password Management            = DECIDED ❌ (Storage Schema PENDING)
+Identity Mapping               = DECIDED ❌ (Validation PENDING)
+Role Permission                = DECIDED ❌
+Can_View_All Scope             = DECIDED ❌
+Can_Sign Scope                 = DECIDED ❌
 ```
 
-**Current Status:** ALL OPEN → **Phase 2 BLOCKED**
+**Current Status:** 1/6 DECIDED → **Phase 2 BLOCKED**
 
 ---
 
@@ -283,7 +290,7 @@ Can_Sign Scope                 = DECIDED
 
 | ADR | Status | Owner | Blocking |
 |-----|--------|-------|----------|
-| ADR-001 Authentication Provider | OPEN | Project Owner | YES |
+| ADR-001 Authentication Provider | ✅ DECIDED | Project Owner | NO |
 | ADR-002 Password Management | OPEN | Project Owner | YES |
 | ADR-003 Identity Mapping | OPEN | Project Owner | YES |
 | ADR-004 MFA | OPEN | Project Owner | YES/NO |

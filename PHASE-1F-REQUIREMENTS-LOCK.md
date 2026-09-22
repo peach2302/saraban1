@@ -186,11 +186,22 @@ Password Security Requirements:
 
 ### 3.1 Authentication Architecture
 
+**Authentication Provider — ✅ DECIDED:**
+
+| ID | Requirement | Status | Owner |
+|----|-------------|--------|-------|
+| ADR-001 | Authentication Provider | ✅ DECIDED | Project Owner |
+
+**Decision:** Application-managed Authentication
+
+**Implementation Status:** NOT IMPLEMENTED
+
+---
+
 **OPEN — ต้องตัดสินใจจาก Project Owner:**
 
 | ID | Requirement | Status | Owner |
 |----|-------------|--------|-------|
-| ADR-001 | Authentication Provider | OPEN | Project Owner |
 | ADR-002 | Password Management Architecture | OPEN | Project Owner |
 | ADR-003 | Identity Mapping | OPEN | Project Owner |
 | ADR-004 | MFA | OPEN | Project Owner |
@@ -200,10 +211,9 @@ Password Security Requirements:
 
 คำถาม: Password จะถูกจัดการโดยใคร/ที่ไหน?
 
-ทางเลือก:
-1. External Identity Provider (Google, Microsoft, Auth0, Firebase)
-2. Platform Authentication
-3. Application-managed Authentication
+**หมายเหตุ:** Authentication Provider ถูกเลือกแล้ว (Application-managed) แต่ Password Storage Schema ยังเป็น PENDING
+
+**Password Storage Schema:** PENDING IMPLEMENTATION DESIGN
 
 **หมายเหตุ:** Password Security Requirement (ห้าม plaintext, ห้าม hard-code) เป็น LOCKED แล้ว แต่ Password Management Architecture (จะจัดการโดยใคร) ยังเป็น OPEN
 

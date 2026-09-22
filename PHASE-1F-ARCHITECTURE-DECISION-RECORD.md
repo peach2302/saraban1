@@ -72,7 +72,7 @@ Authentication System: NOT IMPLEMENTED
 
 | ID | Decision | Status | Owner | Blocking |
 |----|----------|--------|-------|----------|
-| ADR-001 | Authentication Provider | **OPEN** | Project Owner | YES |
+| ADR-001 | Authentication Provider | **✅ DECIDED** | Project Owner | NO |
 | ADR-002 | Password Management | **OPEN** | Project Owner | YES |
 | ADR-003 | Identity Mapping | **OPEN** | Project Owner | YES |
 | ADR-004 | MFA | **OPEN** | Project Owner | YES/NO |
@@ -91,11 +91,15 @@ Authentication System: NOT IMPLEMENTED
 
 ### 4.2 Decision
 
-**Status:** OPEN — PROJECT OWNER DECISION REQUIRED
+**Status:** ✅ DECIDED
 
-**Decision:** NOT DECIDED
+**Decision:** APPLICATION-MANAGED AUTHENTICATION
 
 **Owner:** PROJECT OWNER
+
+**Date:** 2026
+
+**Implementation Status:** NOT IMPLEMENTED
 
 ### 4.3 Options Analysis
 
@@ -803,9 +807,9 @@ IF privileged permission unavailable
 
 | # | Question | Status | Blocking |
 |---|----------|--------|----------|
-| 1 | Authentication Provider จะเป็นอะไร? | OPEN | YES |
-| 2 | Password จะถูกจัดการโดยใคร? | OPEN | YES |
-| 3 | Users.Email เป็น Identity Mapping Key หรือไม่? | OPEN | YES |
+| 1 | Authentication Provider จะเป็นอะไร? | ✅ DECIDED — Application-managed | NO |
+| 2 | Password จะถูกจัดการโดยใคร? | OPEN — Storage Schema PENDING | YES |
+| 3 | Users.Email เป็น Identity Mapping Key หรือไม่? | OPEN — Validation PENDING | YES |
 | 4 | Users.Unit_ID ต้อง Required หรือ Optional? | OPEN | NO |
 | 5 | Workflow Actor เป็น User / Position / Department / Unit? | UNVERIFIED | NO |
 | 6 | Approval Sequence หมายถึงอะไร? | UNVERIFIED | NO |
@@ -822,7 +826,7 @@ IF privileged permission unavailable
 
 | ADR | Status | Owner | Blocking |
 |-----|--------|-------|----------|
-| ADR-001 Authentication Provider | OPEN | Project Owner | YES |
+| ADR-001 Authentication Provider | ✅ DECIDED | Project Owner | NO |
 | ADR-002 Password Management | OPEN | Project Owner | YES |
 | ADR-003 Identity Mapping | OPEN | Project Owner | YES |
 | ADR-004 MFA | OPEN | Project Owner | YES/NO |
@@ -834,14 +838,14 @@ IF privileged permission unavailable
 ### 16.2 Phase 2 Gate
 
 **Phase 2 จะเริ่มได้เมื่อ:**
-- ADR-001 = DECIDED
-- ADR-002 = DECIDED
-- ADR-003 = DECIDED
-- ADR-005 = DECIDED
-- ADR-006 = DECIDED
-- ADR-007 = DECIDED
+- ADR-001 = DECIDED ✅
+- ADR-002 = DECIDED ❌
+- ADR-003 = DECIDED ❌
+- ADR-005 = DECIDED ❌
+- ADR-006 = DECIDED ❌
+- ADR-007 = DECIDED ❌
 
-**Current Status:** ALL OPEN → Phase 2 BLOCKED
+**Current Status:** 1/6 DECIDED → Phase 2 BLOCKED
 
 ---
 
