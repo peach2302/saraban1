@@ -10,7 +10,8 @@
     "test:connection": "tsx src/test-connection.ts",
     "check:env": "tsx src/check-env.ts",
     "discover:schema": "tsx src/discover-schema.ts",
-    "discover:all": "tsx src/discover-all.ts"
+    "discover:all": "tsx src/discover-all.ts",
+    "phase1c": "tsx src/scripts/discover-all-sheets.ts"
   },
   "dependencies": {
     "googleapis": "^144.0.0",

@@ -13,6 +13,7 @@ import { getConfig, validateConfig, getConfigurationStatus } from './config/env.
 import healthRoutes from './routes/health.routes.js';
 import googleSheetsRoutes from './routes/googleSheets.routes.js';
 import auditLogRoutes from './routes/auditLog.routes.js';
+import discoveryRoutes from './routes/discovery.routes.js';
 
 // ============================================
 // Server Setup
@@ -44,6 +45,9 @@ app.use('/api/sheets', googleSheetsRoutes);
 
 // Audit Log routes
 app.use('/api/audit-logs', auditLogRoutes);
+
+// Discovery routes
+app.use('/api/discover', discoveryRoutes);
 
 // Root endpoint
 app.get('/', (_req, res) => {
