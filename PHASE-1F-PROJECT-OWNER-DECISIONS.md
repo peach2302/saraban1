@@ -58,9 +58,13 @@ _____________________________________________________________
 
 ---
 
-## Decision 2 — Password Management (ADR-002)
+## Decision 2 — Password Management Architecture (ADR-002)
 
-**คำถาม:** ใครจะรับผิดชอบการจัดการ Password?
+**คำถาม:** Password จะถูกจัดการโดยใคร/ที่ไหน?
+
+**หมายเหตุสำคัญ:** แยก 2 เรื่องออกจากกัน:
+1. **Password Security Requirement (LOCKED)** — ห้าม plaintext, ห้าม hard-code, ห้ามใส่ใน Google Sheets (ยืนยันแล้ว)
+2. **Password Management Architecture (OPEN)** — จะจัดการ password โดยใคร/ที่ไหน (ต้องตัดสินใจ)
 
 **ตัวเลือก:**
 

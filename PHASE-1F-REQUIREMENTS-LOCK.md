@@ -158,21 +158,27 @@ Signatures.User_ID → Users.User_ID — CONFIRMED
 
 ---
 
-### 2.6 Password Source
+### 2.6 Password Security Requirement
 
 **LOCKED:**
 
 ```
-Password Source: NOT FOUND / UNVERIFIED
-Password Column in Users Sheet: NOT PRESENT
+Password Security Requirements:
+✅ ห้ามเก็บ password แบบ plaintext
+✅ ห้าม hard-code password
+✅ ห้ามใส่ password ลงใน Google Sheets Users
+✅ ห้ามแสดง password ใน log
+✅ Password Source: NOT FOUND / UNVERIFIED
+✅ Password Column in Users Sheet: NOT PRESENT
 ```
 
 **ห้าม:**
-- ❌ สร้าง Password Column
-- ❌ สร้าง Password Sheet
+- ❌ สร้าง Password Column ใน Google Sheets
+- ❌ สร้าง Password Sheet ใน Google Sheets
 - ❌ ใช้ Email เป็น Password
 - ❌ ใช้ User_ID เป็น Password
-- ❌ Hard-code password
+- ❌ Hard-code password ใน source code
+- ❌ เก็บ password ใน Git repository
 
 ---
 
@@ -185,10 +191,21 @@ Password Column in Users Sheet: NOT PRESENT
 | ID | Requirement | Status | Owner |
 |----|-------------|--------|-------|
 | ADR-001 | Authentication Provider | OPEN | Project Owner |
-| ADR-002 | Password Management | OPEN | Project Owner |
+| ADR-002 | Password Management Architecture | OPEN | Project Owner |
 | ADR-003 | Identity Mapping | OPEN | Project Owner |
 | ADR-004 | MFA | OPEN | Project Owner |
 | ADR-008 | Authentication Budget | OPEN | Project Owner |
+
+**Password Management Architecture — OPEN:**
+
+คำถาม: Password จะถูกจัดการโดยใคร/ที่ไหน?
+
+ทางเลือก:
+1. External Identity Provider (Google, Microsoft, Auth0, Firebase)
+2. Platform Authentication
+3. Application-managed Authentication
+
+**หมายเหตุ:** Password Security Requirement (ห้าม plaintext, ห้าม hard-code) เป็น LOCKED แล้ว แต่ Password Management Architecture (จะจัดการโดยใคร) ยังเป็น OPEN
 
 ---
 
@@ -324,11 +341,16 @@ Can_Sign Scope                 = DECIDED
 | Data Structure | 7 | 0 | 9 | 0 |
 | Roles | 7 | 0 | 0 | 0 |
 | Security | 6 | 0 | 0 | 0 |
-| Password | 1 | 0 | 0 | 0 |
-| Authentication | 0 | 5 | 0 | 5 |
+| Password Security | 1 | 0 | 0 | 0 |
+| Password Management | 0 | 1 | 0 | 1 |
+| Authentication | 0 | 4 | 0 | 4 |
 | Authorization | 0 | 3 | 0 | 3 |
 | Business Rules | 0 | 4 | 4 | 0 |
 | **Total** | **26** | **12** | **13** | **8** |
+
+**หมายเหตุ:** แยก Password เป็น 2 ส่วน:
+- Password Security (LOCKED) = ข้อกำหนดความปลอดภัยที่ห้าม plaintext, ห้าม hard-code
+- Password Management (OPEN) = การตัดสินใจว่าจะจัดการ password โดยใคร/ที่ไหน
 
 ---
 

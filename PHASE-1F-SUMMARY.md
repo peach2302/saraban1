@@ -38,16 +38,37 @@
 
 ---
 
-## Password Management
+## Password Security Requirement
+
+**LOCKED — ยืนยันแล้ว**
+
+**ข้อกำหนด:**
+- ❌ ห้ามเก็บ password แบบ plaintext
+- ❌ ห้าม hard-code password
+- ❌ ห้ามใส่ password ลงใน Google Sheets Users
+- ❌ ห้ามแสดง password ใน log
+- ✅ ต้องใช้ salted hash (ถ้า application-managed)
+- ✅ ต้องมี rate limiting (ถ้า application-managed)
+- ✅ ต้องป้องกัน brute force (ถ้า application-managed)
+
+**หมายเหตุ:** ข้อกำหนดความปลอดภัยเหล่านี้เป็น LOCKED ห้ามเปลี่ยนแปลง
+
+---
+
+## Password Management Architecture
 
 **OPEN — PROJECT OWNER DECISION REQUIRED**
 
+**คำถาม:** Password จะถูกจัดการโดยใคร/ที่ไหน?
+
 **Options:**
-1. Authentication Provider จัดการ
-2. Platform จัดการ
-3. Application จัดการ
+1. Authentication Provider จัดการ (External IdP)
+2. Platform จัดการ (Platform Auth)
+3. Application จัดการ (Application-managed)
 
 **See:** `PHASE-1F-ARCHITECTURE-DECISION-RECORD.md` — ADR-002
+
+**หมายเหตุ:** Password Security Requirement (ห้าม plaintext, ห้าม hard-code) เป็น LOCKED แล้ว แต่ Password Management Architecture (จะจัดการโดยใคร) ยังเป็น OPEN
 
 ---
 
@@ -247,11 +268,16 @@ Can_Sign Scope                 = DECIDED
 | Data Structure | 7 | 0 | 9 | 0 |
 | Roles | 7 | 0 | 0 | 0 |
 | Security | 6 | 0 | 0 | 0 |
-| Password | 1 | 0 | 0 | 0 |
-| Authentication | 0 | 5 | 0 | 5 |
+| Password Security | 1 | 0 | 0 | 0 |
+| Password Management | 0 | 1 | 0 | 1 |
+| Authentication | 0 | 4 | 0 | 4 |
 | Authorization | 0 | 3 | 0 | 3 |
 | Business Rules | 0 | 4 | 4 | 0 |
 | **Total** | **26** | **12** | **13** | **8** |
+
+**หมายเหตุ:** แยก Password เป็น 2 ส่วน:
+- Password Security (LOCKED) = ข้อกำหนดความปลอดภัยที่ห้าม plaintext, ห้าม hard-code
+- Password Management (OPEN) = การตัดสินใจว่าจะจัดการ password โดยใคร/ที่ไหน
 
 ### ADR Status
 

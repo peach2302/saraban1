@@ -208,11 +208,15 @@ Authentication System: NOT IMPLEMENTED
 
 ---
 
-## 5. ADR-002: Password Management
+## 5. ADR-002: Password Management Architecture
 
 ### 5.1 Context
 
 Users Sheet ไม่มี Password Column ต้องตัดสินใจว่าจะจัดการ password อย่างไร
+
+**หมายเหตุสำคัญ:** แยก 2 เรื่องออกจากกัน:
+1. **Password Security Requirement (LOCKED)** — ข้อกำหนดความปลอดภัยที่ห้าม plaintext, ห้าม hard-code
+2. **Password Management Architecture (OPEN)** — การตัดสินใจว่าจะจัดการ password โดยใคร/ที่ไหน
 
 ### 5.2 Decision
 
@@ -221,6 +225,8 @@ Users Sheet ไม่มี Password Column ต้องตัดสินใจ
 **Decision:** NOT DECIDED
 
 **Owner:** PROJECT OWNER
+
+**Scope:** การตัดสินใจว่าจะจัดการ password โดยใคร/ที่ไหน (ไม่ใช่ข้อกำหนดความปลอดภัย)
 
 ### 5.3 Options
 
