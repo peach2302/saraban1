@@ -11,7 +11,8 @@
     "check:env": "tsx src/check-env.ts",
     "discover:schema": "tsx src/discover-schema.ts",
     "discover:all": "tsx src/discover-all.ts",
-    "phase1c": "tsx src/scripts/discover-all-sheets.ts"
+    "phase1c": "tsx src/scripts/discover-all-sheets.ts",
+    "phase1h": "tsx src/scripts/phase1h-discovery.ts"
   },
   "dependencies": {
     "googleapis": "^144.0.0",
