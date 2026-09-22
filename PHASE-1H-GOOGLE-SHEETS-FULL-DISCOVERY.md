@@ -1,139 +1,357 @@
-# Phase 1H — Google Sheets Full Discovery Report
+# Phase 1H — Google Sheets Full Discovery
 
 **E-Saraban — ระบบสารบรรณอิเล็กทรอนิกส์**  
 **เทศบาลตำบลป่งไฮ**  
 **วันที่:** 2026  
-**สถานะ:** ⚠️ PARTIAL — ต้องรัน Discovery Script จริง
+**สถานะ:** ⚠️ IMPLEMENTATION PREPARED — NOT EXECUTED
 
 ---
 
-## Executive Summary
+## ⚠️ IMPORTANT NOTICE
 
-Phase 1H มีเป้าหมายเพื่ออ่าน Google Sheets จริงครบทั้ง 10 Sheets และสร้าง Master Mapping
+**ไฟล์นี้ถูกสร้างใน workspace แต่ยังไม่ถูก execute จริง**
 
-**สถานะปัจจุบัน:**
-- ✅ Validation script ถูกสร้างแล้ว
-- ⚠️ ยังไม่ได้รัน script จริง
-- ⚠️ ต้องรัน `npm run phase1h` เพื่ออ่านข้อมูลจริง
+- ✅ Discovery script ถูกสร้างแล้ว
+- ✅ npm script ถูกเพิ่มแล้ว
+- ❌ ยังไม่ได้ execute script
+- ❌ ยังไม่ได้อ่าน Google Sheets จริง
+- ❌ ยังไม่มีผลลัพธ์จริง
 
-**หมายเหตุสำคัญ:**
-เอกสารนี้อ้างอิงจากข้อมูล Phase 1B และ 1G เท่านั้น
-**ต้องรัน Discovery Script เพื่ออ่านข้อมูลจริงจาก Google Sheets**
+**ต้อง execute script บนเครื่อง local ก่อนจึงจะได้ข้อมูลจริง**
 
 ---
 
-## Discovery Script
+## Implementation Status
 
-### Script Location
+### Files Created
+
 ```
-server/src/scripts/phase1h-discovery.ts
+✅ server/src/scripts/phase1h-discovery.ts (191 lines)
+✅ server/package.json (updated with phase1h script)
 ```
 
-### วิธีรัน
+### npm Script Added
+
+```json
+"phase1h": "tsx src/scripts/phase1h-discovery.ts"
+```
+
+### Execution Required
+
 ```bash
 cd server
 npm install
 npm run phase1h
 ```
 
-### ผลลัพธ์ที่คาดหวัง
+---
+
+## What This Script Does
+
+1. **Connects to Google Sheets** using Service Account credentials
+2. **Reads all 10 sheets:**
+   - Users
+   - Positions
+   - Departments
+   - Units
+   - Documents
+   - Incoming
+   - Outgoing
+   - Workflow
+   - Signatures
+   - AuditLog
+3. **Extracts:**
+   - Sheet names
+   - Headers
+   - All data rows
+   - Row counts
+   - Column counts
+4. **Validates:**
+   - Sheet structure
+   - Empty sheets (reported as SUCCESS with 0 rows)
+   - Failed reads (reported as FAILED)
+5. **Creates output:**
+   - `PHASE-1H-DISCOVERY-RESULT.json`
+
+---
+
+## Expected Output
+
+After execution, the script will create:
+
 ```
-PHASE-1H-DISCOVERY-RESULT.json
+server/PHASE-1H-DISCOVERY-RESULT.json
+```
+
+**Structure:**
+
+```json
+{
+  "spreadsheetId": "1JDfRSCQJy7bsNgONUztTaNc-ucNuKkJadOSUah7Gpes",
+  "spreadsheetTitle": "...",
+  "sheets": [
+    {
+      "sheetName": "Users",
+      "headers": ["User_ID", "ชื่อ-สกุล", ...],
+      "rows": [...],
+      "rowCount": 8,
+      "columnCount": 11,
+      "readStatus": "SUCCESS"
+    },
+    // ... (10 sheets)
+  ],
+  "timestamp": "...",
+  "status": "SUCCESS",
+  "errors": [],
+  "warnings": [],
+  "summary": {
+    "totalSheets": 10,
+    "sheetsWithData": X,
+    "emptySheets": Y,
+    "failedSheets": Z
+  }
+}
 ```
 
 ---
 
-## Sheets ที่ต้องอ่าน (10 Sheets)
+## What This Script Does NOT Do
 
-| # | Sheet Name | Status | Notes |
-|---|-----------|--------|-------|
-| 1 | Users | ⚠️ KNOWN (จาก Phase 1B) | 8 users, 11 columns |
-| 2 | Positions | ⚠️ KNOWN (จาก Phase 1B) | 8 positions, 5 columns |
-| 3 | Departments | ⚠️ PARTIAL | 4/6 verified |
-| 4 | Units | ⚠️ PARTIAL | 1/33 verified |
-| 5 | Documents | ❓ UNVERIFIED | ต้องอ่านจริง |
-| 6 | Incoming | ❓ UNVERIFIED | ต้องอ่านจริง |
-| 7 | Outgoing | ❓ UNVERIFIED | ต้องอ่านจริง |
-| 8 | Workflow | ❓ UNVERIFIED | ต้องอ่านจริง |
-| 9 | Signatures | ⚠️ KNOWN (จาก Phase 1B) | 3 signatures |
-| 10 | AuditLog | ❓ UNVERIFIED | ต้องอ่านจริง |
+- ❌ Does NOT modify Google Sheets
+- ❌ Does NOT add rows/columns
+- ❌ Does NOT create mock data
+- ❌ Does NOT implement authentication
+- ❌ Does NOT add Password_Hash
+- ❌ Does NOT infer workflow semantics
+- ❌ Does NOT guess missing data
 
 ---
 
-## ข้อมูลจาก Phase 1B/1G (OBSERVED — ต้องยืนยันจริง)
+## READ-ONLY Guarantee
 
-### Users Sheet (OBSERVED)
-```
-Columns: 11
-Rows: 8
-Headers: User_ID, ชื่อ-สกุล, Position_ID, ตำแหน่ง, Department_ID, Unit_ID, Role, Email, สถานะ, Can_View_All, Can_Sign
-```
-
-### Positions Sheet (OBSERVED)
-```
-Columns: 5
-Rows: 8
-Headers: Position_ID, ตำแหน่ง, Department_ID, Role, ลำดับอนุมัติ
-```
-
-### Departments Sheet (OBSERVED)
-```
-Columns: 3
-Rows: 4+ (D001-D004 verified, D005-D006 unverified)
-Headers: Department_ID, ชื่อหน่วยงาน, สถานะ
-```
-
-### Units Sheet (OBSERVED)
-```
-Columns: 5
-Rows: 1+ (UNT0015 verified)
-Headers: Unit_ID, ชื่อฝ่าย/งาน, Department_ID, ประเภท, สถานะ
-```
-
-### Signatures Sheet (OBSERVED)
-```
-Columns: 7
-Rows: 3
-Headers: Signature_ID, User_ID, ชื่อ-สกุล, ตำแหน่ง, Signature_File_ID, วันที่บันทึก, สถานะ
-```
+This script uses:
+- `spreadsheets.readonly` scope
+- `spreadsheets.values.get` API only
+- No write operations
+- No update operations
+- No delete operations
 
 ---
 
-## Action Required
+## How to Execute
 
-### ต้องทำก่อนดำเนินการต่อ
+### Prerequisites
 
-1. **รัน Discovery Script**
-   ```bash
-   cd server
-   npm run phase1h
+1. `.env` file must exist with:
+   ```
+   GOOGLE_SPREADSHEET_ID=1JDfRSCQJy7bsNgONUztTaNc-ucNuKkJadOSUah7Gpes
+   GOOGLE_SERVICE_ACCOUNT_EMAIL=...
+   GOOGLE_PRIVATE_KEY=...
    ```
 
-2. **ตรวจสอบผลลัพธ์**
-   - เปิดไฟล์ `PHASE-1H-DISCOVERY-RESULT.json`
-   - ตรวจสอบว่าอ่านครบ 10 sheets หรือไม่
+2. Service Account must have access to the Spreadsheet
 
-3. **อัปเดตเอกสารรายงาน**
-   - แทนที่ข้อมูล OBSERVED ด้วยข้อมูล VERIFIED
-   - ระบุจำนวนจริงของแต่ละ sheet
+3. Dependencies must be installed:
+   ```bash
+   npm install
+   ```
+
+### Execution Steps
+
+```bash
+# 1. Navigate to server directory
+cd server
+
+# 2. Install dependencies (if not already done)
+npm install
+
+# 3. Verify environment
+npm run check:env
+
+# 4. Test connection
+npm run test:connection
+
+# 5. Run discovery
+npm run phase1h
+```
+
+### Expected Console Output
+
+```
+═══════════════════════════════════════════════════════════
+PHASE 1H — GOOGLE SHEETS FULL DISCOVERY
+E-Saraban — ระบบสารบรรณอิเล็กทรอนิกส์
+═══════════════════════════════════════════════════════════
+
+📡 Connecting to Google Sheets...
+   Spreadsheet ID: 1JDfRSCQ...
+   Service Account: saraban@glassy-clarity-509403-v7.iam.gserviceaccount.com
+
+📋 Reading spreadsheet metadata...
+✅ Connected successfully!
+   Title: [ชื่อ Spreadsheet]
+   Total Sheets: 10
+
+📄 Reading sheet: Users
+   ✅ Headers: 11
+   ✅ Data Rows: 8
+   ✅ Columns: User_ID, ชื่อ-สกุล, Position_ID, ...
+
+📄 Reading sheet: Positions
+   ✅ Headers: 5
+   ✅ Data Rows: 8
+   ✅ Columns: Position_ID, ตำแหน่ง, Department_ID, ...
+
+... (อ่านครบ 10 sheets)
+
+═══════════════════════════════════════════════════════════
+DISCOVERY COMPLETE
+═══════════════════════════════════════════════════════════
+
+Status: SUCCESS
+Sheets Read: 10/10
+  - With Data: X
+  - Empty: Y
+  - Failed: Z
+
+✅ Report saved to: PHASE-1H-DISCOVERY-RESULT.json
+```
 
 ---
 
-## Status
+## Error Handling
 
-**Phase 1H Discovery Status:** ⚠️ PARTIAL
+### Missing Credentials
 
-**สิ่งที่ต้องทำ:**
-- ⏳ รัน Discovery Script
-- ⏳ อ่านข้อมูลจริงจาก Google Sheets
-- ⏳ อัปเดตเอกสารรายงาน
+```
+❌ Missing Google Sheets credentials in .env
+```
 
-**สิ่งที่ทำแล้ว:**
-- ✅ สร้าง Validation Script
-- ✅ สร้างเอกสารรายงาน (placeholder)
+**Solution:** Check `.env` file has all required variables
+
+### Authentication Failed
+
+```
+❌ Connection failed: The request is missing a valid API key or token.
+```
+
+**Solution:** Verify Service Account credentials are correct
+
+### Permission Denied
+
+```
+❌ Connection failed: The caller does not have permission
+   Error Code: 403
+```
+
+**Solution:** Share Spreadsheet with Service Account email
+
+### Spreadsheet Not Found
+
+```
+❌ Connection failed: Requested entity was not found
+   Error Code: 404
+```
+
+**Solution:** Verify Spreadsheet ID is correct
 
 ---
 
-*รายงานสร้างเมื่อ: Phase 1H — E-Saraban Project*  
-*สถานะ: ⚠️ PARTIAL — ต้องรัน Discovery Script*  
+## Validation Rules
+
+### Empty Sheets
+
+If a sheet has headers but no data rows:
+- **Status:** `EMPTY`
+- **Reported as:** SUCCESS (not failure)
+- **Row count:** 0
+
+### Failed Reads
+
+If a sheet cannot be read:
+- **Status:** `FAILED`
+- **Error message:** Included in errors array
+- **Does not stop:** Other sheets continue to be read
+
+### Partial Success
+
+If some sheets fail:
+- **Overall status:** `PARTIAL`
+- **Successful sheets:** Included in result
+- **Failed sheets:** Listed in errors
+
+---
+
+## Security
+
+### What is NOT Logged
+
+- ❌ Private keys
+- ❌ Access tokens
+- ❌ Passwords
+- ❌ Credentials
+- ❌ Secrets
+
+### What is Logged
+
+- ✅ Spreadsheet ID (partial)
+- ✅ Service Account email
+- ✅ Sheet names
+- ✅ Row counts
+- ✅ Column names
+- ✅ Error messages (without secrets)
+
+---
+
+## Next Steps After Execution
+
+1. **Review the output file:**
+   ```bash
+   cat PHASE-1H-DISCOVERY-RESULT.json
+   ```
+
+2. **Verify all 10 sheets were read**
+
+3. **Check for errors or warnings**
+
+4. **Analyze the data:**
+   - Users validation
+   - Positions validation
+   - Departments validation
+   - Units validation
+   - Cross-sheet relationships
+
+5. **Create validation reports** based on actual data
+
+---
+
+## Summary
+
+```
+========================================
+PHASE 1H DISCOVERY SCRIPT
+========================================
+
+Status: IMPLEMENTED (NOT EXECUTED)
+Script: server/src/scripts/phase1h-discovery.ts
+Lines: 191
+npm script: phase1h
+
+Execution Required:
+cd server
+npm run phase1h
+
+Expected Output:
+PHASE-1H-DISCOVERY-RESULT.json
+
+Read-Only: ✅ YES
+Modifies Sheets: ❌ NO
+Creates Mock Data: ❌ NO
+========================================
+```
+
+---
+
+*เอกสารสร้างเมื่อ: Phase 1H — E-Saraban Project*  
+*สถานะ: ⚠️ IMPLEMENTATION PREPARED — NOT EXECUTED*  
 *วันที่: 2026*

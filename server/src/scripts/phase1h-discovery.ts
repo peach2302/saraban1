@@ -1,8 +1,15 @@
 /**
  * Phase 1H — Google Sheets Full Discovery & Validation
  * E-Saraban — ระบบสารบรรณอิเล็กทรอนิกส์
+ * เทศบาลตำบลป่งไฮ
  * 
- * READ ONLY — ห้ามเขียน/แก้ไขข้อมูล
+ * READ ONLY — ห้ามเขียน/แก้ไขข้อมูลใน Google Sheets
+ * 
+ * วัตถุประสงค์:
+ * - อ่าน Google Sheets ทั้ง 10 Sheets
+ * - ตรวจสอบโครงสร้างข้อมูล
+ * - ตรวจสอบ relationships
+ * - สร้างรายงานการตรวจสอบ
  */
 
 import { google } from 'googleapis';
@@ -14,8 +21,12 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// โหลด .env
+// โหลด .env จาก project root
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+
+// ============================================
+// Types
+// ============================================
 
 interface SheetData {
   sheetName: string;
@@ -23,6 +34,8 @@ interface SheetData {
   rows: string[][];
   rowCount: number;
   columnCount: number;
+  readStatus: 'SUCCESS' | 'FAILED' | 'EMPTY';
+  error?: string;
 }
 
 interface ValidationResult {
@@ -32,13 +45,25 @@ interface ValidationResult {
   timestamp: string;
   status: 'SUCCESS' | 'PARTIAL' | 'FAILED';
   errors: string[];
+  warnings: string[];
+  summary: {
+    totalSheets: number;
+    sheetsWithData: number;
+    emptySheets: number;
+    failedSheets: number;
+  };
 }
+
+// ============================================
+// Main Discovery Function
+// ============================================
 
 async function discoverAllSheets(): Promise<ValidationResult> {
   const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
   const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   const privateKey = process.env.GOOGLE_PRIVATE_KEY;
 
+  // ตรวจสอบ credentials
   if (!spreadsheetId || !serviceAccountEmail || !privateKey) {
     return {
       spreadsheetId: spreadsheetId || '',
@@ -46,12 +71,20 @@ async function discoverAllSheets(): Promise<ValidationResult> {
       sheets: [],
       timestamp: new Date().toISOString(),
       status: 'FAILED',
-      errors: ['Missing Google Sheets credentials'],
+      errors: ['Missing Google Sheets credentials in .env'],
+      warnings: [],
+      summary: {
+        totalSheets: 0,
+        sheetsWithData: 0,
+        emptySheets: 0,
+        failedSheets: 0,
+      },
     };
   }
 
   console.log('═══════════════════════════════════════════════════════════');
   console.log('PHASE 1H — GOOGLE SHEETS FULL DISCOVERY');
+  console.log('E-Saraban — ระบบสารบรรณอิเล็กทรอนิกส์');
   console.log('═══════════════════════════════════════════════════════════\n');
 
   console.log('📡 Connecting to Google Sheets...');
@@ -59,6 +92,7 @@ async function discoverAllSheets(): Promise<ValidationResult> {
   console.log(`   Service Account: ${serviceAccountEmail}\n`);
 
   try {
+    // สร้าง authenticated client
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: serviceAccountEmail,
@@ -69,7 +103,7 @@ async function discoverAllSheets(): Promise<ValidationResult> {
 
     const sheets = google.sheets({ version: 'v4', auth });
 
-    // ดึง metadata
+    // ดึง metadata ของ spreadsheet
     console.log('📋 Reading spreadsheet metadata...');
     const metadataResponse = await sheets.spreadsheets.get({
       spreadsheetId,
@@ -86,6 +120,7 @@ async function discoverAllSheets(): Promise<ValidationResult> {
     // อ่านข้อมูลทุก sheet
     const allSheetsData: SheetData[] = [];
     const errors: string[] = [];
+    const warnings: string[] = [];
 
     for (const sheet of sheetsList) {
       const sheetName = sheet.properties?.title;
@@ -94,7 +129,7 @@ async function discoverAllSheets(): Promise<ValidationResult> {
       console.log(`📄 Reading sheet: ${sheetName}`);
 
       try {
-        // อ่านข้อมูลทั้งหมด
+        // อ่านข้อมูลทั้งหมดจาก sheet
         const response = await sheets.spreadsheets.values.get({
           spreadsheetId,
           range: sheetName,
@@ -111,19 +146,41 @@ async function discoverAllSheets(): Promise<ValidationResult> {
           rows,
           rowCount: rows.length,
           columnCount: headers.length,
+          readStatus: rows.length === 0 ? 'EMPTY' : 'SUCCESS',
         };
 
         allSheetsData.push(sheetData);
 
         console.log(`   ✅ Headers: ${headers.length}`);
         console.log(`   ✅ Data Rows: ${rows.length}`);
-        console.log(`   ✅ Columns: ${headers.join(', ')}\n`);
+        console.log(`   ✅ Columns: ${headers.join(', ')}`);
+        
+        if (rows.length === 0) {
+          console.log(`   ⚠️  Sheet is empty (headers only)\n`);
+        } else {
+          console.log('');
+        }
       } catch (error) {
         const errorMsg = `Failed to read sheet "${sheetName}": ${error instanceof Error ? error.message : 'Unknown error'}`;
         console.error(`   ❌ ${errorMsg}\n`);
         errors.push(errorMsg);
+        
+        allSheetsData.push({
+          sheetName,
+          headers: [],
+          rows: [],
+          rowCount: 0,
+          columnCount: 0,
+          readStatus: 'FAILED',
+          error: errorMsg,
+        });
       }
     }
+
+    // สรุปผล
+    const sheetsWithData = allSheetsData.filter(s => s.readStatus === 'SUCCESS').length;
+    const emptySheets = allSheetsData.filter(s => s.readStatus === 'EMPTY').length;
+    const failedSheets = allSheetsData.filter(s => s.readStatus === 'FAILED').length;
 
     const result: ValidationResult = {
       spreadsheetId,
@@ -132,12 +189,36 @@ async function discoverAllSheets(): Promise<ValidationResult> {
       timestamp: new Date().toISOString(),
       status: errors.length === 0 ? 'SUCCESS' : 'PARTIAL',
       errors,
+      warnings,
+      summary: {
+        totalSheets: allSheetsData.length,
+        sheetsWithData,
+        emptySheets,
+        failedSheets,
+      },
     };
 
     // บันทึกผลลัพธ์
     const reportPath = path.resolve(__dirname, '../../../PHASE-1H-DISCOVERY-RESULT.json');
     fs.writeFileSync(reportPath, JSON.stringify(result, null, 2));
-    console.log(`✅ Report saved to: ${reportPath}\n`);
+    
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log('DISCOVERY COMPLETE');
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log(`\nStatus: ${result.status}`);
+    console.log(`Sheets Read: ${allSheetsData.length}/10`);
+    console.log(`  - With Data: ${sheetsWithData}`);
+    console.log(`  - Empty: ${emptySheets}`);
+    console.log(`  - Failed: ${failedSheets}`);
+    
+    if (errors.length > 0) {
+      console.log(`\nErrors: ${errors.length}`);
+      errors.forEach((err, i) => {
+        console.log(`  ${i + 1}. ${err}`);
+      });
+    }
+    
+    console.log(`\n✅ Report saved to: ${reportPath}\n`);
 
     return result;
   } catch (error) {
@@ -163,26 +244,22 @@ async function discoverAllSheets(): Promise<ValidationResult> {
       timestamp: new Date().toISOString(),
       status: 'FAILED',
       errors: [error instanceof Error ? error.message : 'Unknown error'],
+      warnings: [],
+      summary: {
+        totalSheets: 0,
+        sheetsWithData: 0,
+        emptySheets: 0,
+        failedSheets: 0,
+      },
     };
   }
 }
 
-// รัน script
+// ============================================
+// Execute
+// ============================================
+
 discoverAllSheets().then((result) => {
-  console.log('\n═══════════════════════════════════════════════════════════');
-  console.log('DISCOVERY COMPLETE');
-  console.log('═══════════════════════════════════════════════════════════');
-  console.log(`\nStatus: ${result.status}`);
-  console.log(`Sheets Read: ${result.sheets.length}/10`);
-  
-  if (result.errors.length > 0) {
-    console.log(`\nErrors: ${result.errors.length}`);
-    result.errors.forEach((err, i) => {
-      console.log(`  ${i + 1}. ${err}`);
-    });
-  }
-  
-  console.log('\n');
   process.exit(result.status === 'FAILED' ? 1 : 0);
 }).catch((error) => {
   console.error('Fatal error:', error);
